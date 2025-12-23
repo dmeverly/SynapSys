@@ -11,9 +11,9 @@ public class EnvSecretProvider implements SecretProvider {
         Dotenv tempDotenv = null;
         try {
             tempDotenv = Dotenv.load();
-            log.info("dev.everly.synapsys.secrets.EnvSecretProvider: .env file loaded successfully.");
+            log.info("env file loaded successfully.");
         } catch (DotenvException e) {
-            log.warn("dev.everly.synapsys.secrets.EnvSecretProvider: .env file not found. " +
+            log.warn("env file not found. " +
                     "Falling back to system environment variables only. " +
                     "If you're developing locally, consider creating a .env file in your project root.");
         }

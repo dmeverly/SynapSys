@@ -47,7 +47,7 @@ public class ConfigurationService extends SynapSysComponentBase {
             return Optional.of((String) paramValue);
         }
         if (secretProvider == null) {
-            log.error("ConfigurationService (ID: {}): dev.everly.synapsys.secrets.SecretProvider is null. Configuration cannot be retrieved for key: {}", getID(), key);
+            log.error("ConfigurationService (ID: {}): SecretProvider is null. Configuration cannot be retrieved for key: {}", getID(), key);
             return Optional.empty();
         }
         return Optional.ofNullable(secretProvider.getSecret(key));
@@ -59,7 +59,7 @@ public class ConfigurationService extends SynapSysComponentBase {
     public Map<String, String> getAllLoadedProperties() {
         log.warn("getAllLoadedProperties() in ConfigurationService now only returns " +
                 "parameters explicitly set on this component instance, as direct environment " +
-                "variable loading has been delegated to dev.everly.synapsys.secrets.SecretProvider.");
+                "variable loading has been delegated to SecretProvider.");
         return Collections.unmodifiableMap(parameters.entrySet().stream()
                 .filter(entry -> entry.getValue() instanceof String)
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> (String) e.getValue())));
