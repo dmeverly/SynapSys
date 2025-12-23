@@ -1,0 +1,19 @@
+# Maven build output
+target/
+${project.build.directory}/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Logs
+*.log
+
+# OS cruft
+.DS_Store
+Thumbs.db
+.env
+
