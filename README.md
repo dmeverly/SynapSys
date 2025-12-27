@@ -1,3 +1,8 @@
+<p style="text-align:center;">
+  <img src="assets/emblem-mono-light.png" width="84" alt=""/>
+</p>
+
+
 # SynapSys — Failure-Aware LLM Orchestration Framework
 
 **Author**: David Everly  
