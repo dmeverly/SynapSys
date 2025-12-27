@@ -1,5 +1,5 @@
-<p style="text-align:center;">
-  <img src="assets/emblem-mono-light.png" width="84" alt=""/>
+<p align="center">
+  <img src="assets/emblem-mono-light.png" width="84" alt="" />
 </p>
 
 
