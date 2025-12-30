@@ -1,4 +1,4 @@
-package dev.everly.synapsys.spring.autoconfigure;
+package dev.everly.synapsys.spring;
 
 import dev.everly.synapsys.core.ISynapSysComponent;
 import dev.everly.synapsys.core.SynapSysManager;
