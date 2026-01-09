@@ -24,3 +24,6 @@ local.mk
 /private/
 /**/private/
 /**/*-private-*
+synapsys-core/
+synapsys-spring-boot-starter/
+synapsys-spring-boot-autoconfigure/
