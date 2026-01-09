@@ -1,141 +1,256 @@
 <p align="center">
-  <img src="assets/emblem-mono-light.png" width="84" alt="" />
+  <img src="src/main/resources/emblem-mono-light.png" width="84" alt="" />
 </p>
 
+# SynapSys Broker (v2) — Failure-Aware LLM Orchestration & Guard Framework
 
-# SynapSys — Failure-Aware LLM Orchestration Framework
-
-**Author**: David Everly  
-**Language**: Java (Spring Boot compatible)  
+**Author**: David Everly
+**Language**: Java (Spring Boot)
 **Status**: Active development
 
----
+SynapSys is a **broker** that sits between Internet-exposed applications and LLM providers.
+It is designed for environments where **probabilistic model output must be constrained by deterministic system behavior**.
 
-## Overview
-
-**SynapSys** is a modular orchestration framework for Large Language Model (LLM) systems, designed for environments where **probabilistic model output must be constrained by deterministic system behavior**.
-
-Rather than acting as a thin wrapper around model APIs, SynapSys enforces a structured execution pipeline that explicitly separates:
-
-- prompt construction
-- model execution
-- output parsing
-- validation
-- local repair
-
-This design reflects real-world constraints encountered in healthcare and other safety-critical or regulated domains, where malformed or incorrect outputs cannot be blindly propagated downstream.
+This repository contains the **public broker implementation**.
+**Private guard logic and policies** are intentionally excluded and are expected to be loaded at runtime.
 
 ---
 
-## Why This Exists
+## Purpose
 
-Most LLM integrations assume:
-- well-formed outputs
-- happy-path execution
-- manual intervention on failure
-- human review as a safety mechanism
+SynapSys exists to centralize and harden LLM usage in systems where:
 
-SynapSys is built for scenarios where:
-- outputs must conform to strict structural expectations
-- failures are expected and handled programmatically
-- systems must remain predictable even when models are not
+* callers are untrusted
+* output must be auditable and bounded
+* failure modes must be predictable
 
-The framework treats **invalid or malformed model output as a normal system state**, not an exception.
+It prioritizes **containment, policy enforcement, and observability** over flexible or open-ended generation.
 
 ---
 
-## Core Design Principles
+## What This Is
 
-- **Explicit failure boundaries**  
-  Each pipeline stage declares how failure is detected and handled.
+SynapSys provides:
 
-- **Separation of concerns**  
-  Prompting, parsing, validation, and repair are independent, replaceable components.
+* **A single authenticated API** for upstream applications
+* **Deterministic guard stages** around all LLM calls (pre- and post-execution)
+* **Provider abstraction**, supporting real providers in production and stubbed providers in tests
+* **Explicit trust boundaries** — caller identity is derived from auth headers, never request content
+* **Failure-aware responses** with structured status and metadata
 
-- **Controlled interfaces around probabilistic systems**  
-  LLMs are treated as unreliable subsystems behind deterministic abstractions.
-
-- **Enterprise-oriented integration**  
-  Implemented in Java with Spring Boot auto-configuration support.
+This is infrastructure for **controlled LLM exposure**, not a chatbot.
 
 ---
 
-## Architecture Overview
+## What This Is Not
 
-SynapSys is structured as a multi-module Maven project:
+SynapSys does **not** guarantee:
 
-### `synapsys-core`
-The orchestration engine, including:
-- `PipelineAgent` — coordinates execution flow
-- `Parser` — extracts structured data from raw model output
-- `Validator` — enforces correctness constraints
-- `Repair` — attempts local correction of invalid output
-- Guard utilities (e.g., JSON shaping and enforcement helpers)
+* perfect resistance to adversarial input
+* factual correctness of model output
+* complete protection from prompt injection in isolation
 
-### `synapsys-spring-boot-autoconfigure`
-- Auto-wires agents and clients
-- Binds configuration via properties
-- Manages lifecycle within a Spring context
-
-### `synapsys-spring-boot-starter`
-- Convenience dependency for production use
+It is a **control plane**, not a magic shield.
+Security and safety emerge from **architecture + policy**, not models alone.
 
 ---
 
-## Execution Flow (Simplified)
+## High-Level Architecture
 
-1. Prompt generation
-2. LLM invocation
-3. Parsing
-4. Validation
-5. Optional local repair with bounded retry attempts
-6. Post-processing and return
+```
+Internet
+   │
+   ▼
+Edge Application (e.g., Everlybot)
+   │   (authenticated, minimal payload)
+   ▼
+SynapSys Broker
+   │
+   ├─ Pre-LLM Guards
+   ├─ Provider / Model Selection
+   ├─ Prompt Assembly & Grounding
+   ├─ LLM Execution
+   └─ Post-LLM Guards
+   │
+   ▼
+Controlled Response / Deterministic Fallback
+```
 
-Repair operates on **model output**, not by re-prompting the model.  
-All retries are bounded and explicit.
+**Key design choice:** SynapSys binds to localhost by default:
+
+* `server.address=127.0.0.1`
+* `server.port=8080`
+
+It is intended to be reachable **only by co-located or internal services** you explicitly trust.
 
 ---
 
-## Supported LLM Providers
+## API
 
-SynapSys includes interchangeable client implementations for:
-- OpenAI
-- Google Gemini
-- Mistral
+### Health Endpoints
 
-Clients share a common interface and are selected via configuration, allowing applications to switch providers without modifying pipeline logic.
+```
+GET /health
+GET /api/health
+GET /actuator/health
+```
+
+Returns:
+
+```json
+{ "status": "UP" }
+```
+
+---
+
+### Chat Endpoint
+
+```
+POST /api/v1/chat
+```
+
+**Authentication headers** (required outside `test` profile):
+
+* `X-SynapSys-Key` — shared secret between caller and broker
+* `X-SynapSys-Sender` — stable caller identity (used for policy and audit)
+
+**Request body**
+
+```json
+{
+  "content": "string",
+  "context": { "any": "json" }
+}
+```
+
+**Successful response**
+
+```json
+{
+  "sender": "synapsys",
+  "content": "string",
+  "metadata": {
+    "status": "success",
+    "providerUsed": "...",
+    "total_tokens": 0,
+    "prompt_tokens": 0,
+    "completion_tokens": 0
+  }
+}
+```
+
+Blocked or policy-violating requests return structured responses with:
+
+```
+metadata.status = "blocked"
+```
+
+Raw model output is never returned on violation.
+
+---
+
+## Execution Profiles
+
+### `test`
+
+* permissive security (no API key required)
+* deterministic **stubbed provider**
+* suitable for unit, integration, and abuse testing
+* config: `application-test.properties`
+
+### default / `prod`
+
+* API-key authentication enforced for `/api/**`
+* real provider enabled (Gemini is active in this codebase)
+* config: `application.properties`
 
 ---
 
 ## Configuration & Secrets
 
-Authentication is handled via a `SecretProvider` abstraction (e.g., environment variables or `.env` files).  
-This avoids hard-coded credentials and supports containerized deployment.
+Secrets are supplied via environment variables (recommended injection at runtime).
+
+Key mappings:
+
+* `synapsys.llm.default-model` ← `SYNAPSYS_DEFAULT_MODEL`
+* `synapsys.llm.gemini-key` ← `GEMINI_API_KEY`
+* `synapsys.llm.mistral-key` ← `MISTRAL_API_KEY`
+* `synapsys.llm.nvd-api-key` ← `NVD_API_KEY`
+* `synapsys.security.client-secret` ← `SYNAPSYS_CLIENT_SECRET`
+
+No secrets are committed to this repository.
 
 ---
 
-## Relationship to Portfolio Chatbot
+## Private Guard Pattern (Recommended)
 
-SynapSys is actively used as the orchestration layer for the **Portfolio Chatbot**, a deployed reference application that demonstrates:
+Guard policies are expected to live **outside the public codebase**.
 
-- structured prompting
-- validation and repair paths
-- controlled exposure of model output
-- explicit trust boundaries around LLM calls
+Recommended runtime pattern:
 
----
+1. Build broker → `target/*-exec.jar`
+2. Package private guards as a separate JAR
+3. Load guards via Spring Boot loader path:
 
-## Scope & Non-Goals
+```
+-Dloader.path=file:///path/to/private-guards.jar
+```
 
-SynapSys does **not** claim to:
-- provide security guarantees
-- prevent all adversarial input
-- enforce domain correctness
-
-It provides **infrastructure** for building systems that require control and inspection around LLM behavior.
+This allows sensitive policy logic to remain private while reusing the public broker.
 
 ---
 
-## Disclaimer
+## Local Development
 
-This project was developed independently on personal time and is not affiliated with any employer.
+### Prerequisites
+
+* Java 25
+* Maven
+* A local `local.mk` file (not committed)
+
+Setup:
+
+* copy `local.mk.template` → `local.mk`
+* configure:
+
+  * `SECRETS_DIR=/path/to/secrets`
+  * `GUARDS_JAR=/path/to/private-guards.jar`
+
+### Build
+
+```
+make package
+```
+
+### Run (default profile)
+
+```
+make run
+```
+
+### Run (test profile)
+
+```
+make test
+```
+
+---
+
+## Security Notes
+
+* **CORS is not authentication.**
+  All real enforcement occurs via `X-SynapSys-Key`.
+
+* Do **not** expose this broker directly to the public Internet without:
+
+  * rate limiting
+  * network ACLs
+  * mTLS or equivalent transport controls
+
+* Treat guard logic as sensitive infrastructure.
+
+---
+
+## License
+
+Add a LICENSE file if this repository is intended for long-term public use.

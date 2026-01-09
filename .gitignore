@@ -1,22 +1,26 @@
-# Maven build output
 target/
 ${project.build.directory}/
-
-# IntelliJ IDEA
 .idea/
 *.iml
 *.ipr
 *.iws
 out/
-
-# Logs
 *.log
-
-# OS cruft
 .DS_Store
 Thumbs.db
 .env
-
-.env
+.env.mac
+.env.windows
 .env.*
-
+.mvn/
+mvnw
+mvnw.cmd
+.vscode/
+*.class
+Makefile
+secrets.properties
+**/secrets/*
+local.mk
+/private/
+/**/private/
+/**/*-private-*

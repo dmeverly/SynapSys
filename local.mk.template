@@ -1,0 +1,4 @@
+Copy these to local.mk on your device and set the path
+
+SECRETS_FILE=/path/to/your/secrets.properties
+GUARDS_JAR=/path/to/your/guards.jar
