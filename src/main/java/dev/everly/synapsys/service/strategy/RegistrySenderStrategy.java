@@ -7,8 +7,8 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import dev.everly.synapsys.service.context.LlmContextAugmenter;
-import dev.everly.synapsys.service.llm.model.ApplicationMessage;
-import dev.everly.synapsys.service.llm.model.SynapsysRequest;
+import dev.everly.synapsys.service.llm.message.ApplicationMessage;
+import dev.everly.synapsys.service.llm.message.SynapsysRequest;
 import dev.everly.synapsys.service.sender.SenderConfig;
 import dev.everly.synapsys.service.sender.SenderConfigService;
 

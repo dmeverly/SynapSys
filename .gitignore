@@ -17,7 +17,6 @@ mvnw
 mvnw.cmd
 .vscode/
 *.class
-Makefile
 secrets.properties
 **/secrets/*
 local.mk

@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import dev.everly.synapsys.util.LogColor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -23,7 +24,7 @@ public final class GeminiFileSearchClient {
 		this.httpClient = httpClient;
 		this.objectMapper = objectMapper;
 		this.geminiApiKey = geminiApiKey;
-		log.info("GeminiFileSearchClient Created: " + this);
+		log.warn(LogColor.warn("GeminiFileSearchClient Created: " + this));
 	}
 
 	public String generateGroundedContent(String modelName, String systemInstructionText, String userPromptText,

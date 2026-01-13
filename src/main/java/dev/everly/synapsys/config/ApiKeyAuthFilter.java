@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -20,13 +19,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import dev.everly.synapsys.service.sender.SenderConfig;
+import dev.everly.synapsys.service.sender.SenderConfigService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 @Component
-@Profile("!test")
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
 	private static final String HEADER_KEY = "X-SynapSys-Key";
@@ -36,30 +36,33 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 	private static final Set<String> RESERVED_SENDERS = Set.of("anonymous", "system", "synapsys", "test", "admin",
 			"root");
 
-	private final LlmConfig properties;
 	private final ObjectMapper objectMapper;
+	private final SenderConfigService senderConfigService;
 
-	public ApiKeyAuthFilter(LlmConfig properties, ObjectMapper objectMapper) {
-		this.properties = properties;
+	public ApiKeyAuthFilter(ObjectMapper objectMapper, SenderConfigService senderConfigService) {
 		this.objectMapper = objectMapper;
+		this.senderConfigService = senderConfigService;
+	}
+
+	private static boolean constantTimeEquals(String a, String b) {
+		if (a == null || b == null || b.isBlank()) {
+			return false;
+		}
+		byte[] aBytes = a.getBytes(StandardCharsets.UTF_8);
+		byte[] bBytes = b.getBytes(StandardCharsets.UTF_8);
+		return MessageDigest.isEqual(aBytes, bBytes);
 	}
 
 	@Override
-	protected void doFilterInternal(
-			HttpServletRequest request,
-			HttpServletResponse response,
-			FilterChain filterChain) throws ServletException, IOException {
+	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+			throws ServletException, IOException {
 
 		String requestKey = request.getHeader(HEADER_KEY);
 		String senderHeaderValue = request.getHeader(HEADER_SENDER);
-		String expectedKey = properties.security().clientSecret();
 
 		if (senderHeaderValue == null || senderHeaderValue.isBlank()) {
-			writeDenialResponse(
-					response,
-					HttpStatus.UNAUTHORIZED,
-					"Authentication required. Please provide an X-SynapSys-Sender header.",
-					"missing_sender");
+			writeDenialResponse(response, HttpStatus.UNAUTHORIZED,
+					"Authentication required. Please provide an X-SynapSys-Sender header.", "missing_sender");
 			return;
 		}
 
@@ -67,57 +70,42 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 		String normalizedSender = trimmedSender.toLowerCase();
 
 		if (!SENDER_PATTERN.matcher(trimmedSender).matches()) {
-			writeDenialResponse(
-					response,
-					HttpStatus.BAD_REQUEST,
+			writeDenialResponse(response, HttpStatus.BAD_REQUEST,
 					"Sender name must contain only alphanumeric characters, hyphens, and underscores (1-64 chars).",
 					"invalid_sender_format");
 			return;
 		}
 
 		if (RESERVED_SENDERS.contains(normalizedSender)) {
-			writeDenialResponse(
-					response,
-					HttpStatus.FORBIDDEN,
-					"The sender name '" + trimmedSender
-							+ "' is reserved for system use. Please use a different identifier.",
-					"reserved_sender");
+			writeDenialResponse(response, HttpStatus.FORBIDDEN, "The sender name '" + trimmedSender
+					+ "' is reserved for system use. Please use a different identifier.", "reserved_sender");
 			return;
 		}
+
+		SenderConfig cfg;
+		try {
+			cfg = senderConfigService.getRequired(normalizedSender);
+		} catch (Exception e) {
+			writeDenialResponse(response, HttpStatus.UNAUTHORIZED, "Authentication required. Unknown sender.",
+					"unknown_sender");
+			return;
+		}
+
+		String expectedKey = cfg.synapsysClientKey();
 
 		if (!constantTimeEquals(requestKey, expectedKey)) {
-			writeDenialResponse(
-					response,
-					HttpStatus.UNAUTHORIZED,
-					"Authentication required. Please provide a valid X-SynapSys-Key header.",
-					"invalid_api_key");
+			writeDenialResponse(response, HttpStatus.UNAUTHORIZED,
+					"Authentication required. Please provide a valid X-SynapSys-Key header.", "invalid_api_key");
 			return;
 		}
 
-		var auth = new UsernamePasswordAuthenticationToken(
-				trimmedSender,
-				null,
-				Collections.emptyList());
+		var auth = new UsernamePasswordAuthenticationToken(trimmedSender, null, Collections.emptyList());
 		SecurityContextHolder.getContext().setAuthentication(auth);
 		filterChain.doFilter(request, response);
 	}
 
-	private static boolean constantTimeEquals(String a, String b) {
-		if (a == null || b == null || b.isBlank()) {
-			return false;
-		}
-
-		byte[] aBytes = a.getBytes(StandardCharsets.UTF_8);
-		byte[] bBytes = b.getBytes(StandardCharsets.UTF_8);
-
-		return MessageDigest.isEqual(aBytes, bBytes);
-	}
-
-	private void writeDenialResponse(
-			HttpServletResponse response,
-			HttpStatus status,
-			String message,
-			String reason) throws IOException {
+	private void writeDenialResponse(HttpServletResponse response, HttpStatus status, String message, String reason)
+			throws IOException {
 
 		response.setStatus(status.value());
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);

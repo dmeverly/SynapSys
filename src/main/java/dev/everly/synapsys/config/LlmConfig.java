@@ -7,6 +7,6 @@ public record LlmConfig(Llm llm, Security security) {
 	public record Llm(String geminiKey, String mistralKey, String defaultModel, String nvdApiKey) {
 	}
 
-	public record Security(String clientSecret) {
+	public record Security(String clientSecret, String sendersDir) {
 	}
 }

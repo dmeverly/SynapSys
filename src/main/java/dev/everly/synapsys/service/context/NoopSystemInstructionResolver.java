@@ -3,7 +3,7 @@ package dev.everly.synapsys.service.context;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import dev.everly.synapsys.service.llm.model.SynapsysRequest;
+import dev.everly.synapsys.service.llm.message.SynapsysRequest;
 
 @Component
 @Order(Integer.MAX_VALUE)

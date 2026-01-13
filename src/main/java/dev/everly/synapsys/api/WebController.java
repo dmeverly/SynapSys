@@ -1,19 +1,15 @@
 package dev.everly.synapsys.api;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.everly.synapsys.service.guard.BrokerService;
-import dev.everly.synapsys.service.llm.model.ApplicationMessage;
-import dev.everly.synapsys.service.llm.model.InboundApplicationMessage;
-import dev.everly.synapsys.service.llm.model.LlmResult;
-import dev.everly.synapsys.service.llm.model.SynapsysResponse;
+import dev.everly.synapsys.service.BrokerService;
+import dev.everly.synapsys.service.llm.message.ApplicationMessage;
+import dev.everly.synapsys.service.llm.message.InboundApplicationMessage;
+import dev.everly.synapsys.service.llm.message.SynapsysResponse;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
@@ -28,21 +24,20 @@ public class WebController {
 	}
 
 	@PostMapping("/chat")
-	public SynapsysResponse execute(@RequestBody InboundApplicationMessage inbound, Authentication authentication) {
-		String authenticatedSender = (authentication != null) ? authentication.getName() : "anonymous";
+	public SynapsysResponse execute(@RequestBody InboundApplicationMessage inboundApplicationMessage,
+			Authentication authentication) {
+		String authenticatedSender = authenticateSender(authentication);
 
-		ApplicationMessage trustedApplicationMessage = new ApplicationMessage(authenticatedSender,
-				inbound.getContent(), inbound.getContext());
+		ApplicationMessage applicationMessage = new ApplicationMessage(authenticatedSender,
+				inboundApplicationMessage.getContent(), inboundApplicationMessage.getContext());
 
-		LlmResult result = brokerService.process(trustedApplicationMessage);
+		return brokerService.executeRequestPipeline(applicationMessage);
+	}
 
-		Map<String, Object> metadata = new LinkedHashMap<>();
-		metadata.put("status", "success");
-		metadata.put("providerUsed", result.providerUsed());
-		metadata.put("total_tokens", result.usage().totalTokens());
-		metadata.put("prompt_tokens", result.usage().promptTokens());
-		metadata.put("completion_tokens", result.usage().completionTokens());
-
-		return new SynapsysResponse("synapsys", result.content(), metadata);
+	private String authenticateSender(Authentication authentication) {
+		if (authentication == null) {
+			return "anonymous";
+		}
+		return authentication.getName();
 	}
 }

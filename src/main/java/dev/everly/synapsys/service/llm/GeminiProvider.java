@@ -13,9 +13,9 @@ import com.google.genai.types.GenerateContentResponse;
 import com.google.genai.types.Part;
 
 import dev.everly.synapsys.config.LlmConfig;
-import dev.everly.synapsys.service.llm.model.LlmResult;
-import dev.everly.synapsys.service.llm.model.SynapsysRequest;
-import dev.everly.synapsys.service.llm.model.TokenUsage;
+import dev.everly.synapsys.service.llm.message.LlmResponse;
+import dev.everly.synapsys.service.llm.message.SynapsysRequest;
+import dev.everly.synapsys.service.llm.message.TokenUsage;
 import dev.everly.synapsys.util.LogColor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,7 +35,7 @@ public class GeminiProvider implements LlmProvider {
 			throw new IllegalStateException("Missing Gemini API Key in configuration.");
 		}
 
-		String configuredModel = (config.llm() != null) ? config.llm().defaultModel() : null;
+		String configuredModel = config.llm().defaultModel();
 		this.defaultModel = (configuredModel == null) ? "" : configuredModel.trim();
 		this.geminiSdkClient = Client.builder().apiKey(apiKey).build();
 		this.fileSearchClient = fileSearchClient;
@@ -50,7 +50,7 @@ public class GeminiProvider implements LlmProvider {
 	}
 
 	@Override
-	public LlmResult generate(SynapsysRequest synapsysRequest) {
+	public LlmResponse generate(SynapsysRequest synapsysRequest) {
 		String resolvedModel = synapsysRequest.getModelVersion().isBlank() ? defaultModel
 				: synapsysRequest.getModelVersion();
 
@@ -61,14 +61,14 @@ public class GeminiProvider implements LlmProvider {
 			if (usesFileSearch) {
 				String groundedText = fileSearchClient.generateGroundedContent(resolvedModel,
 						synapsysRequest.getSystemInstruction(), synapsysRequest.getContent(), storeName);
-				return new LlmResult(groundedText, TokenUsage.empty(), "gemini");
+				return new LlmResponse(groundedText, TokenUsage.empty(), "gemini");
 			}
 
 			GenerateContentConfig config = buildSdkConfig(synapsysRequest.getSystemInstruction());
 			GenerateContentResponse response = geminiSdkClient.models.generateContent(resolvedModel,
 					synapsysRequest.getContent(), config);
 
-			return new LlmResult(response.text(), extractUsage(response), "gemini");
+			return new LlmResponse(response.text(), extractUsage(response), "gemini");
 
 		} catch (Exception exception) {
 			throw new RuntimeException("Gemini Failure: " + exception.getMessage(), exception);

@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import dev.everly.synapsys.service.llm.model.SynapsysRequest;
+import dev.everly.synapsys.service.llm.message.SynapsysRequest;
 import dev.everly.synapsys.service.secrets.SecretsLocator;
 import dev.everly.synapsys.service.sender.SenderConfig;
 import dev.everly.synapsys.service.sender.SenderConfigService;
@@ -70,13 +70,12 @@ public final class RegistrySystemInstructionResolver implements SystemInstructio
 		try {
 			String text = Files.readString(path);
 
-			log.info("Loaded system instruction file: path={} bytes={} sha256={}", path, text.length(),
-					sha256Hex(text));
+			log.info("Loaded system instructions");
 
 			return text;
 
 		} catch (IOException e) {
-			throw new IllegalStateException("Failed to read system instruction file: " + path, e);
+			throw new IllegalStateException("Failed to read system instructions");
 		}
 	}
 }
