@@ -2,14 +2,16 @@
   <img src="src/main/resources/emblem-mono-light.png" width="84" alt="" />
 </p>
 
-# SynapSys Broker (v2) — Failure-Aware LLM Orchestration & Guard Framework
+# SynapSys Broker (v2.1) — Failure-Aware LLM Orchestration & Guard Framework
 
-**Author**: David Everly
-**Language**: Java (Spring Boot)
-**Status**: Active development
+**Author**: David Everly  
+**Language**: Java (Spring Boot)  
+**Status**: Active development  
+Copyright © 2025 David Everly
 
 SynapSys is a **broker** that sits between Internet-exposed applications and LLM providers.
-It is designed for environments where **probabilistic model output must be constrained by deterministic system behavior**.
+It is designed for environments where **probabilistic model output must be constrained by deterministic system behavior
+**.
 
 This repository contains the **public broker implementation**.
 **Private guard logic and policies** are intentionally excluded and are expected to be loaded at runtime.
@@ -25,6 +27,51 @@ SynapSys exists to centralize and harden LLM usage in systems where:
 * failure modes must be predictable
 
 It prioritizes **containment, policy enforcement, and observability** over flexible or open-ended generation.
+
+---
+
+## Security Model (v2.1)
+
+SynapSys is designed as a **local control plane**, not a public API.
+
+Key properties:
+
+* **Local binding by default**
+  The broker listens on `127.0.0.1` and is not Internet-exposed.
+
+* **HMAC-based request authentication**
+  Requests are signed using a shared secret, bound to:
+    - HTTP method
+    - request path
+    - request body
+    - timestamp
+    - nonce
+
+* **Replay protection**
+  Timestamp windows and nonce caches prevent captured request reuse.
+
+* **Explicit trust boundaries**
+  Caller identity is derived from authenticated headers, never from request content.
+
+SynapSys assumes an upstream edge (gateway, tunnel, or service) enforces network-level access control.
+
+---
+
+## Security Notes
+
+* **SynapSys authenticates applications, not humans.**  Upstream applications are responsible for authenticating users.
+
+* **Authentication is request-bound, not bearer-based.**
+  All requests are HMAC-signed and bound to method, path, body, timestamp, and nonce.
+
+* **Replay attacks are explicitly mitigated**
+  via timestamp windows and nonce caches.
+
+* **The broker binds to localhost by default**
+  and is intended to sit behind a trusted edge service or tunnel.
+
+
+* Do **not** expose this broker directly to the public Internet. Place it behind a trusted edge.
 
 ---
 
@@ -61,7 +108,7 @@ Security and safety emerge from **architecture + policy**, not models alone.
 Internet
    │
    ▼
-Edge Application (e.g., Everlybot)
+Edge Application (e.g., Everlybot and other supported applications)
    │   (authenticated, minimal payload)
    ▼
 SynapSys Broker
@@ -98,7 +145,9 @@ GET /actuator/health
 Returns:
 
 ```json
-{ "status": "UP" }
+{
+  "status": "UP"
+}
 ```
 
 ---
@@ -109,17 +158,24 @@ Returns:
 POST /api/v1/chat
 ```
 
-**Authentication headers** (required outside `test` profile):
+**Authentication headers**:
 
-* `X-SynapSys-Key` — shared secret between caller and broker
-* `X-SynapSys-Sender` — stable caller identity (used for policy and audit)
+* `X-SynapSys-Sender` — stable caller identity (policy + audit anchor)
+* `X-SynapSys-Timestamp` — request epoch seconds (replay window enforcement)
+* `X-SynapSys-Nonce` — per-request unique identifier
+* `X-SynapSys-Signature` — HMAC-SHA256 over canonical request
+
+Authentication uses **HMAC request signing** with bounded timestamps and nonce replay protection.  
+No bearer secrets are transmitted over the wire.
 
 **Request body**
 
 ```json
 {
   "content": "string",
-  "context": { "any": "json" }
+  "context": {
+    "any": "json"
+  }
 }
 ```
 
@@ -127,15 +183,14 @@ POST /api/v1/chat
 
 ```json
 {
-  "sender": "synapsys",
+  "sender": "string",
   "content": "string",
   "metadata": {
-    "status": "success",
-    "providerUsed": "...",
-    "total_tokens": 0,
-    "prompt_tokens": 0,
-    "completion_tokens": 0
-  }
+    "status": "string",
+    "reason": "string"
+  },
+  "context": {},
+  "timestamp": "string"
 }
 ```
 
@@ -149,24 +204,26 @@ Raw model output is never returned on violation.
 
 ---
 
-## Execution Profiles
+## Developer & Deployment Notes
 
-### `test`
+### Execution Profiles
+
+#### `test`
 
 * permissive security (no API key required)
 * deterministic **stubbed provider**
 * suitable for unit, integration, and abuse testing
 * config: `application-test.properties`
 
-### default / `prod`
+#### `prod`
 
-* API-key authentication enforced for `/api/**`
-* real provider enabled (Gemini is active in this codebase)
+* HMAC request authentication enforced for `/api/**`
+* real LLM provider enabled
 * config: `application.properties`
 
 ---
 
-## Configuration & Secrets
+### Configuration & Secrets
 
 Secrets are supplied via environment variables (recommended injection at runtime).
 
@@ -182,7 +239,7 @@ No secrets are committed to this repository.
 
 ---
 
-## Private Guard Pattern (Recommended)
+### Private Guard Pattern (Recommended)
 
 Guard policies are expected to live **outside the public codebase**.
 
@@ -200,9 +257,9 @@ This allows sensitive policy logic to remain private while reusing the public br
 
 ---
 
-## Local Development
+### Local Development
 
-### Prerequisites
+#### Prerequisites
 
 * Java 25
 * Maven
@@ -213,22 +270,22 @@ Setup:
 * copy `local.mk.template` → `local.mk`
 * configure:
 
-  * `SECRETS_DIR=/path/to/secrets`
-  * `GUARDS_JAR=/path/to/private-guards.jar`
+    * `SECRETS_DIR=/path/to/secrets`
+    * `GUARDS_JAR=/path/to/private-guards.jar`
 
-### Build
+#### Build
 
 ```
 make package
 ```
 
-### Run (default profile)
+#### Run (default profile)
 
 ```
 make run
 ```
 
-### Run (test profile)
+#### Run (test profile)
 
 ```
 make test
@@ -236,21 +293,12 @@ make test
 
 ---
 
-## Security Notes
-
-* **CORS is not authentication.**
-  All real enforcement occurs via `X-SynapSys-Key`.
-
-* Do **not** expose this broker directly to the public Internet without:
-
-  * rate limiting
-  * network ACLs
-  * mTLS or equivalent transport controls
-
-* Treat guard logic as sensitive infrastructure.
-
----
-
 ## License
 
-Add a LICENSE file if this repository is intended for long-term public use.
+This project is licensed under the **Apache License 2.0**.
+
+You are free to use, modify, and distribute this software, including for
+commercial purposes, subject to the terms of the license.
+
+Private guard logic, policies, and runtime configurations are not included
+in this repository and are not covered by this license.
