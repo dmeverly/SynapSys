@@ -2,6 +2,11 @@ package dev.everly.synapsys.service.guard;
 
 import dev.everly.synapsys.service.llm.message.SynapsysRequest;
 
-public interface PostFlightGuard extends Guard {
-	String sanitize(SynapsysRequest context, String llmOutput);
+public abstract class PostFlightGuard implements Guard {
+	@Override
+	public boolean appliesTo(String sender, GuardPhase phase) {
+		return phase == GuardPhase.POSTFLIGHT;
+	}
+
+	public abstract String sanitize(SynapsysRequest context, String llmOutput);
 }

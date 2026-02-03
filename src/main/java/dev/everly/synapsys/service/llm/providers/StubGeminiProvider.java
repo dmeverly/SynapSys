@@ -1,4 +1,4 @@
-package dev.everly.synapsys.service.llm;
+package dev.everly.synapsys.service.llm.providers;
 
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;

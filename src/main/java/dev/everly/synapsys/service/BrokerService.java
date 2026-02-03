@@ -14,14 +14,16 @@ import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.stereotype.Service;
 
 import dev.everly.synapsys.service.context.SystemInstructionResolver;
+import dev.everly.synapsys.service.guard.GuardPhase;
 import dev.everly.synapsys.service.guard.GuardViolationException;
 import dev.everly.synapsys.service.guard.PostFlightGuard;
 import dev.everly.synapsys.service.guard.PreFlightGuard;
-import dev.everly.synapsys.service.llm.LlmProvider;
+import dev.everly.synapsys.service.llm.LlmProviderException;
 import dev.everly.synapsys.service.llm.message.ApplicationMessage;
 import dev.everly.synapsys.service.llm.message.LlmResponse;
 import dev.everly.synapsys.service.llm.message.SynapsysRequest;
 import dev.everly.synapsys.service.llm.message.SynapsysResponse;
+import dev.everly.synapsys.service.llm.providers.LlmProvider;
 import dev.everly.synapsys.service.strategy.SenderStrategy;
 import dev.everly.synapsys.util.LogColor;
 import dev.everly.synapsys.util.TextCanon;
@@ -111,9 +113,6 @@ public class BrokerService {
 			runPreFlightGuards(finalSynapsysRequest);
 
 			LlmProvider llmProvider = llmProvidersById.get(finalSynapsysRequest.getLlmProvider());
-			if (llmProvider == null) {
-				throw new IllegalArgumentException("Unknown Provider: " + finalSynapsysRequest.getLlmProvider());
-			}
 
 			LlmResponse llmResult = callWithTimeout(() -> llmProvider.generate(finalSynapsysRequest), providerTimeout,
 					finalSynapsysRequest.getLlmProvider());
@@ -127,6 +126,12 @@ public class BrokerService {
 
 			return new SynapsysResponse("synapsys", clearedResult.content(), getMetadata(clearedResult));
 
+		} catch (LlmProviderException llmProviderException) {
+			return new SynapsysResponse("synapsys", llmProviderException.getNeutralMessage(),
+					Map.of("status", "error", "reason", llmProviderException.getType().name().toLowerCase(),
+							"retryable", llmProviderException.getType() == LlmProviderException.Type.RATE_LIMIT
+									|| llmProviderException.getType() == LlmProviderException.Type.UNAVAILABLE));
+
 		} finally {
 			MDC.remove("sender");
 		}
@@ -134,7 +139,7 @@ public class BrokerService {
 
 	private void runPreFlightGuards(SynapsysRequest synapsysRequest) {
 		for (PreFlightGuard guard : preFlightGuards) {
-			if (guard.appliesTo(synapsysRequest.getSender())) {
+			if (guard.appliesTo(synapsysRequest.getSender(), GuardPhase.PREFLIGHT)) {
 				guard.inspect(synapsysRequest);
 			}
 		}
@@ -144,8 +149,12 @@ public class BrokerService {
 		String safeContent = llmResult.content();
 
 		for (PostFlightGuard guard : postFlightGuards) {
-			if (guard.appliesTo(synapsysRequest.getSender())) {
+			if (guard.appliesTo(synapsysRequest.getSender(), GuardPhase.POSTFLIGHT)) {
+				String preGuard = safeContent;
 				safeContent = guard.sanitize(synapsysRequest, safeContent);
+				if (!preGuard.equals(safeContent)) {
+					log.warn("<<< TX_SANITIZED | guard={}", guard.getClass().getSimpleName());
+				}
 			}
 		}
 

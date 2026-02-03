@@ -14,7 +14,7 @@ import dev.everly.synapsys.service.llm.message.SynapsysRequest;
 
 @Component
 @Order(10)
-public class ResourceCapsGuard implements PreFlightGuard {
+public class ResourceCapsGuard extends PreFlightGuard {
 
 	private final int maxInputChars;
 
