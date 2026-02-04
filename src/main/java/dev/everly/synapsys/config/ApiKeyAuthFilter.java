@@ -25,13 +25,16 @@ import dev.everly.synapsys.authentication.CachedBodyHttpServletRequest;
 import dev.everly.synapsys.authentication.NonceCache;
 import dev.everly.synapsys.service.sender.SenderConfig;
 import dev.everly.synapsys.service.sender.SenderConfigService;
+import dev.everly.synapsys.util.LogColor;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
+@Slf4j
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
 	private static final Pattern SENDER_PATTERN = Pattern.compile("^[a-z0-9_-]{1,64}$", Pattern.CASE_INSENSITIVE);
@@ -93,6 +96,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 		String sigHeader = request.getHeader(HEADER_SIG);
 
 		String senderHeaderValue = request.getHeader(HEADER_SENDER);
+
 		if (senderHeaderValue == null || senderHeaderValue.isBlank()) {
 			writeDenialResponse(response, HttpStatus.UNAUTHORIZED,
 					"Authentication required. Please provide an X-SynapSys-Sender header.", "missing_sender");
@@ -148,6 +152,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 		try {
 			cfg = senderConfigService.getRequired(normalizedSender);
 		} catch (Exception e) {
+			log.warn("Sender config lookup failed for '{}': {}", normalizedSender, e.toString());
 			writeDenialResponse(response, HttpStatus.UNAUTHORIZED, "Authentication required. Unknown sender.",
 					"unknown_sender");
 			return;

@@ -12,19 +12,19 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 @Profile("test")
-public class StubGeminiProvider implements LlmProvider {
+public class StubOllamaProvider implements LlmProvider {
 
 	private final long delayMs;
 
-	public StubGeminiProvider() {
+	public StubOllamaProvider() {
 		this.delayMs = Long.parseLong(System.getProperty("stub.delayMs", "0"));
-		log.warn(LogColor.test("Stub Gemini Provider CREATED"));
+		log.warn(LogColor.test("Stub Ollama Provider CREATED"));
 		log.warn(LogColor.test("LLM CALLS DISABLED"));
 	}
 
 	@Override
 	public String getProviderId() {
-		return "gemini";
+		return "ollama";
 	}
 
 	@Override
@@ -37,6 +37,6 @@ public class StubGeminiProvider implements LlmProvider {
 			}
 		}
 		TokenUsage usage = new TokenUsage(0, 0, 0);
-		return new LlmResponse(request.getContent(), usage, "stub-gemini");
+		return new LlmResponse(request.getContent(), usage, "stub-ollama");
 	}
 }

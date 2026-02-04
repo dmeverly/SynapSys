@@ -1,4 +1,4 @@
-BROKER_JAR = target/synapsys-broker-2.0.0-exec.jar
+BROKER_JAR = target/synapsys-broker-2.1.0-exec.jar
 
 -include local.mk
 
