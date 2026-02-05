@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.everly.synapsys.service.secrets.SecretsLocator;
-import lombok.extern.slf4j.Slf4j;
 
 @Service
 public final class SenderConfigService {

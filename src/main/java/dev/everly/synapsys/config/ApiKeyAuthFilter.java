@@ -144,7 +144,6 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         if (request instanceof CachedBodyHttpServletRequest wrapped) {
             return wrapped.getCachedBody();
         }
-        // If CachedBodyFilter isn't applied correctly, fail closed.
         return new byte[0];
     }
 

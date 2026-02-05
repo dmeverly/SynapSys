@@ -13,6 +13,7 @@ All notable changes to this project are documented here.
 ### Architecture
 - Formalized SynapSys as a local-only control plane behind a trusted edge
 - Clarified trust boundary between Everlybot and SynapSys
+- Added Ollama provider support and stubbed LLM
 
 ### Validation
 - Verified authentication, replay protection, and tamper resistance using live traffic
