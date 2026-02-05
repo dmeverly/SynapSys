@@ -1,6 +1,7 @@
 package dev.everly.synapsys.api;
 
-import org.springframework.security.core.Authentication;
+import java.security.Principal;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,27 +18,16 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class WebController {
 
-	private final BrokerService brokerService;
+    private final BrokerService brokerService;
 
-	public WebController(BrokerService brokerService) {
-		this.brokerService = brokerService;
-	}
+    public WebController(BrokerService brokerService) {
+        this.brokerService = brokerService;
+    }
 
-	@PostMapping("/chat")
-	public SynapsysResponse execute(@RequestBody InboundApplicationMessage inboundApplicationMessage,
-			Authentication authentication) {
-		String authenticatedSender = authenticateSender(authentication);
-
-		ApplicationMessage applicationMessage = new ApplicationMessage(authenticatedSender,
-				inboundApplicationMessage.getContent(), inboundApplicationMessage.getContext());
-
-		return brokerService.executeRequestPipeline(applicationMessage);
-	}
-
-	private String authenticateSender(Authentication authentication) {
-		if (authentication == null) {
-			return "anonymous";
-		}
-		return authentication.getName();
-	}
+    @PostMapping("/chat")
+    public SynapsysResponse execute(@RequestBody InboundApplicationMessage inboundApplicationMessage, Principal principal) {
+        String sender = principal.getName();
+        ApplicationMessage applicationMessage = new ApplicationMessage(sender, inboundApplicationMessage.getContent(), inboundApplicationMessage.getContext());
+        return brokerService.executeRequestPipeline(applicationMessage);
+    }
 }

@@ -14,28 +14,28 @@ public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
 
 	public CachedBodyHttpServletRequest(HttpServletRequest request, int maxBytes) throws IOException {
 		super(request);
-		try (InputStream is = request.getInputStream()) {
-			this.cachedBody = readUpTo(is, maxBytes);
+		try (InputStream inputStream = request.getInputStream()) {
+			this.cachedBody = readUpTo(inputStream, maxBytes);
 		}
 	}
 
-	private static byte[] readUpTo(InputStream is, int maxBytes) throws IOException {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream(Math.min(maxBytes, 1024));
+	private static byte[] readUpTo(InputStream inputStream, int maxBytes) throws IOException {
+		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(Math.min(maxBytes, 1024));
 		byte[] buf = new byte[1024];
 		int total = 0;
 		int n;
-		while ((n = is.read(buf)) != -1) {
+		while ((n = inputStream.read(buf)) != -1) {
 			total += n;
 			if (total > maxBytes) {
 				int allowed = n - (total - maxBytes);
 				if (allowed > 0) {
-					baos.write(buf, 0, allowed);
+					byteArrayOutputStream.write(buf, 0, allowed);
 				}
 				break;
 			}
-			baos.write(buf, 0, n);
+			byteArrayOutputStream.write(buf, 0, n);
 		}
-		return baos.toByteArray();
+		return byteArrayOutputStream.toByteArray();
 	}
 
 	public byte[] getCachedBody() {
