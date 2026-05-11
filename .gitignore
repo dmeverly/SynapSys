@@ -26,3 +26,4 @@ local.mk
 synapsys-core/
 synapsys-spring-boot-starter/
 synapsys-spring-boot-autoconfigure/
+unused/

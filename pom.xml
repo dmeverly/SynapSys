@@ -83,7 +83,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>dev.everly.synapsys.SynapsysApplication</mainClass>
+                    <mainClass>dev.everly.synapsys.MasterControl</mainClass>
                     <layout>ZIP</layout>
                     <classifier>exec</classifier>
                 </configuration>

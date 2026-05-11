@@ -1,11 +1,11 @@
-package dev.everly.synapsys.service.llm.providers;
+package dev.everly.synapsys.providers;
 
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
-import dev.everly.synapsys.service.llm.message.LlmResponse;
-import dev.everly.synapsys.service.llm.message.SynapsysRequest;
-import dev.everly.synapsys.service.llm.message.TokenUsage;
+import com.fasterxml.jackson.databind.JsonNode;
+
+import dev.everly.synapsys.dto.SynapSysResponse;
 import dev.everly.synapsys.util.LogColor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,7 +28,7 @@ public class StubOllamaProvider implements LlmProvider {
 	}
 
 	@Override
-	public LlmResponse generate(SynapsysRequest request) {
+	public SynapSysResponse generate(String model, JsonNode query, String apiKey) {
 		if (delayMs > 0) {
 			try {
 				Thread.sleep(delayMs);
@@ -36,7 +36,6 @@ public class StubOllamaProvider implements LlmProvider {
 				Thread.currentThread().interrupt();
 			}
 		}
-		TokenUsage usage = new TokenUsage(0, 0, 0);
-		return new LlmResponse(request.getContent(), usage, "stub-ollama");
+		return SynapSysResponse.ok("stub-ollama", model, query);
 	}
 }
